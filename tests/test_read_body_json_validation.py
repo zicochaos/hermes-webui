@@ -6,7 +6,6 @@ handlers where body.get(...) raised AttributeError and surfaced as a generic
 500. handle_post already maps read_body ValueError to a clean 400; the
 PATCH/DELETE/PUT dispatchers now do the same.
 """
-import json
 import urllib.error
 import urllib.request
 from types import SimpleNamespace
