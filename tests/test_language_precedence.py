@@ -17,6 +17,8 @@ def _run_i18n_case(script_expr: str) -> dict:
         f"""
         const fs = require('fs');
         const vm = require('vm');
+        // Production load order: shared helpers → saved-locale bundles → i18n.js.
+        const shared = fs.readFileSync({json.dumps(str(REPO_ROOT / "static" / "i18n_shared.js"))}, 'utf8');
         const src = fs.readFileSync({json.dumps(str(REPO_ROOT / "static" / "i18n.js"))}, 'utf8');
         // Non-English locales live in lazy bundles; a page always has the saved
         // locale pre-loaded (index.html bootstrap), so mirror that here.
@@ -36,8 +38,9 @@ def _run_i18n_case(script_expr: str) -> dict:
           }},
         }};
         vm.createContext(ctx);
-        vm.runInContext(src, ctx);
+        vm.runInContext(shared, ctx);
         for (const b of bundles) vm.runInContext(b, ctx);
+        vm.runInContext(src, ctx);
         const out = vm.runInContext({json.dumps(wrapped_expr)}, ctx);
         process.stdout.write(JSON.stringify(out));
         """

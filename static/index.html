@@ -69,6 +69,11 @@
     };
   }
 })()</script>
+    <!-- Shared i18n helpers (parser-blocking): locale bundle VALUE references
+         (e.g. processed_elapsed: _i18nProcessedElapsedPl) must resolve when the
+         document.write below evaluates the saved bundle, and before deferred
+         static/i18n.js runs. -->
+    <script src="static/i18n_shared.js?v=__WEBUI_VERSION__"></script>
     <script>
       // Locale bootstrap (no-build lazy i18n): load only the saved locale's
       // bundle synchronously before the deferred app scripts run. English is
@@ -77,7 +82,7 @@
       (function () {
         var m = null;
         try { m = localStorage.getItem('hermes-lang'); } catch (e) {}
-        if (m && m !== 'en' && /^[a-z][a-z0-9-]*$/.test(m)) {
+        if (m && m !== 'en' && /^[a-z][a-z0-9-]*$/i.test(m)) {
           document.write('<script src="static/i18n/' + m + '.js?v=__WEBUI_VERSION__"><\/script>');
         }
       })();

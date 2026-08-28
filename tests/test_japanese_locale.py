@@ -175,7 +175,6 @@ def test_japanese_locale_preserves_placeholder_patterns():
     or `{0}`-style positional placeholders — those are interpolated by JS at
     render time and missing them produces literal `${name}` in the UI.
     """
-    src = locale_src("ja")
 
     en_block = extract_locale_block(locale_src("en"), "en")
     ja_block = extract_locale_block(locale_src("ja"), "ja")

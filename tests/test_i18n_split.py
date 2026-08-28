@@ -18,6 +18,8 @@ I18N_JS = (REPO / "static" / "i18n.js").read_text(encoding="utf-8")
 INDEX_HTML = (REPO / "static" / "index.html").read_text(encoding="utf-8")
 SW_JS = (REPO / "static" / "sw.js").read_text(encoding="utf-8")
 BUNDLE_DIR = REPO / "static" / "i18n"
+SHARED_JS = (REPO / "static" / "i18n_shared.js").read_text(encoding="utf-8")
+PANELS_JS = (REPO / "static" / "panels.js").read_text(encoding="utf-8")
 
 # Every non-English locale that must ship as its own lazy bundle.
 EXPECTED_BUNDLE_CODES = (
@@ -25,6 +27,9 @@ EXPECTED_BUNDLE_CODES = (
     "ko", "fr", "cs", "tr", "pl", "vi",
 )
 
+
+# Canonical codes pinned by static/i18n.js KNOWN_LOCALES: English + every bundle.
+KNOWN_LOCALES = ("en",) + EXPECTED_BUNDLE_CODES
 GUARD_LINE = "window.LOCALES = window.LOCALES || {};"
 
 
@@ -90,6 +95,10 @@ def test_index_html_bootstraps_the_saved_locale_synchronously():
     )
     # The bootstrap must read the same localStorage key setLocale() persists.
     assert "localStorage.getItem('hermes-lang')" in INDEX_HTML
+    # Canonical locale codes are not all lowercase — resolveLocale() maps
+    # zh-TW/zh-HK/zh-MO/zh-hant to 'zh-Hant'. A case-sensitive pattern would
+    # silently drop those users back to the async path (English flash).
+    assert "/^[a-z][a-z0-9-]*$/i.test(m)" in INDEX_HTML
 
 
 def test_sw_js_precaches_i18n_runtime_but_not_locale_bundles():
@@ -101,3 +110,59 @@ def test_sw_js_precaches_i18n_runtime_but_not_locale_bundles():
             f"sw.js must not precache the lazy bundle static/i18n/{code}.js — "
             f"first fetch populates the runtime cache"
         )
+
+
+def test_i18n_shared_defines_every_helper_bundles_reference():
+    referenced = set()
+    for bundle in BUNDLE_DIR.glob("*.js"):
+        referenced |= set(re.findall(r"_i18n[A-Za-z0-9]*", bundle.read_text(encoding="utf-8")))
+    defined = set(re.findall(r"^function (_i18n[A-Za-z0-9]*)", SHARED_JS, re.M))
+    assert referenced, "expected the locale bundles to reference shared helpers"
+    missing = sorted(referenced - defined)
+    assert missing == [], (
+        f"bundles reference helpers missing from static/i18n_shared.js: {missing}"
+    )
+
+
+def test_i18n_js_no_longer_defines_the_moved_helpers():
+    """Single source: _i18n* helper definitions live only in i18n_shared.js."""
+    assert "function _i18n" not in I18N_JS, (
+        "static/i18n.js still defines _i18n* helpers — they moved to "
+        "static/i18n_shared.js and must not be duplicated"
+    )
+
+
+def test_index_html_loads_shared_helpers_before_the_locale_bootstrap():
+    assert "static/i18n_shared.js?v=__WEBUI_VERSION__" in INDEX_HTML, (
+        "index.html must load static/i18n_shared.js"
+    )
+    shared = INDEX_HTML.index("static/i18n_shared.js?v=__WEBUI_VERSION__")
+    bootstrap = INDEX_HTML.index("static/i18n/' + m + '.js?v=__WEBUI_VERSION__")
+    assert shared < bootstrap, (
+        "index.html must load static/i18n_shared.js parser-blocking BEFORE the "
+        "locale bootstrap inline script"
+    )
+
+
+def test_known_locales_pins_exactly_the_canonical_codes():
+    match = re.search(r"^const KNOWN_LOCALES = \[([^\]]*)\];", I18N_JS, re.M)
+    assert match, "static/i18n.js must define KNOWN_LOCALES"
+    assert re.findall(r"'([^']+)'", match.group(1)) == list(KNOWN_LOCALES), (
+        "KNOWN_LOCALES drifted from the canonical locale set"
+    )
+
+
+def test_sw_js_precaches_the_shared_helpers():
+    assert "'./static/i18n_shared.js' + VQ" in SW_JS, (
+        "sw.js must precache static/i18n_shared.js alongside static/i18n.js"
+    )
+
+
+def test_language_dropdown_enumerates_known_locales_not_loaded_bundles():
+    assert "typeof KNOWN_LOCALES!=='undefined'" in PANELS_JS, (
+        "panels.js language dropdown must guard on KNOWN_LOCALES"
+    )
+    assert "for(const [code,bundle] of Object.entries(LOCALES))" not in PANELS_JS, (
+        "language dropdown must not enumerate only-loaded LOCALES — with just "
+        "'en' loaded, English users could never switch language"
+    )

@@ -8,18 +8,28 @@ INDEX = (ROOT / "static" / "index.html").read_text(encoding="utf-8")
 PANELS = (ROOT / "static" / "panels.js").read_text(encoding="utf-8")
 STYLE = (ROOT / "static" / "style.css").read_text(encoding="utf-8")
 I18N = (ROOT / "static" / "i18n.js").read_text(encoding="utf-8")
+BUNDLE_DIR = ROOT / "static" / "i18n"
 COMPACT_INDEX = re.sub(r"\s+", "", INDEX)
 COMPACT_PANELS = re.sub(r"\s+", "", PANELS)
 COMPACT_STYLE = re.sub(r"\s+", "", STYLE)
 
 
-def _locale_blocks_with_body(i18n_text: str):
-    locale_blocks = re.findall(
-        r"\n\s*(?:'(?P<quoted>[a-z]{2}(?:-[A-Z][A-Za-z]+)?)'|(?P<plain>[a-z]{2}(?:-[A-Z]{2})?))\s*:\s*\{(.*?)\n\s*\},",
-        i18n_text,
-        flags=re.S,
-    )
-    return [(quoted or plain, body) for quoted, plain, body in locale_blocks]
+def _locale_blocks_with_body():
+    """(code, body) for every locale: English inline in i18n.js, the rest in static/i18n/<code>.js."""
+    blocks = []
+    en = re.search(r"^LOCALES\.en = \{(.*?)^\s*\};", I18N, flags=re.M | re.S)
+    if en:
+        blocks.append(("en", en.group(1)))
+    for path in sorted(BUNDLE_DIR.glob("*.js")):
+        bundle = path.read_text(encoding="utf-8")
+        m = re.search(
+            r"^window\.LOCALES(?:\.(?P<plain>[A-Za-z][A-Za-z0-9]*)|['\"](?P<quoted>[^'\"]+)['\"])\s*=\s*\{(.*?)^\s*\};",
+            bundle,
+            flags=re.M | re.S,
+        )
+        if m:
+            blocks.append((m.group("plain") or m.group("quoted"), m.group(3)))
+    return blocks
 
 
 def test_kanban_has_native_sidebar_rail_and_mobile_tab():
@@ -562,7 +572,7 @@ def test_kanban_main_view_scrolls_when_task_preview_is_tall():
 
 
 def test_kanban_i18n_keys_exist_in_every_locale_block():
-    locale_blocks = _locale_blocks_with_body(I18N)
+    locale_blocks = _locale_blocks_with_body()
     assert len(locale_blocks) >= 9
     required_keys = [
         "tab_kanban",
@@ -601,7 +611,7 @@ def test_kanban_modal_locale_parity():
     Any locale that already contains modal-facing Kanban strings should include the
     same set of modal vocabulary so new additions don't regress into locale gaps.
     """
-    locale_blocks = _locale_blocks_with_body(I18N)
+    locale_blocks = _locale_blocks_with_body()
     modal_keys = [
         "kanban_title",
         "kanban_description",
@@ -660,7 +670,7 @@ def test_kanban_dashboard_parity_core_controls_are_native():
 
 
 def test_kanban_dashboard_parity_i18n_keys_exist():
-    locale_blocks = _locale_blocks_with_body(I18N)
+    locale_blocks = _locale_blocks_with_body()
     required_keys = [
         "kanban_only_mine",
         "kanban_bulk_action",
@@ -790,7 +800,7 @@ def test_kanban_ui_parity_polish_css_and_i18n_exist():
         ".hermes-kanban-md",
     ):
         assert selector in STYLE
-    locale_blocks = _locale_blocks_with_body(I18N)
+    locale_blocks = _locale_blocks_with_body()
     required_keys = ["kanban_lanes_by_profile", "kanban_card_complete", "kanban_card_archive", "kanban_unassigned", "kanban_work_queue_hint"]
     missing = [
         f"{locale}:{key}"
@@ -1207,7 +1217,7 @@ def test_kanban_locale_parity():
 
     Refs: #1973
     """
-    locale_blocks = _locale_blocks_with_body(I18N)
+    locale_blocks = _locale_blocks_with_body()
     assert locale_blocks, "No locale blocks found in i18n.js"
 
     # Collect the kanban_* keys from the English block.
@@ -1332,7 +1342,7 @@ def test_kanban_hidden_by_filters_ux():
     assert "loadKanban(true)" in clear_body
 
     # i18n keys exist in every locale.
-    locale_blocks = _locale_blocks_with_body(I18N)
+    locale_blocks = _locale_blocks_with_body()
     for key in ("kanban_tasks_hidden_by_filters", "kanban_clear_filters"):
         missing = [
             locale

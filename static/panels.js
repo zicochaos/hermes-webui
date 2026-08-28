@@ -9325,12 +9325,12 @@ async function loadSettingsPanel(){
     const langSel=$('settingsLanguage');
     if(langSel){
       langSel.innerHTML='';
-      if(typeof LOCALES!=='undefined'){
-        for(const [code,bundle] of Object.entries(LOCALES)){
-          const opt=document.createElement('option');
-          opt.value=code;opt.textContent=bundle._label||code;
-          langSel.appendChild(opt);
-        }
+      const localeCodes=(typeof KNOWN_LOCALES!=='undefined')?KNOWN_LOCALES:((typeof LOCALES!=='undefined')?Object.keys(LOCALES):[]);
+      for(const code of localeCodes){
+        const bundle=(typeof LOCALES!=='undefined')?LOCALES[code]:null;
+        const opt=document.createElement('option');
+        opt.value=code;opt.textContent=(bundle&&bundle._label)||code;
+        langSel.appendChild(opt);
       }
       langSel.value=resolvedLanguage;
       langSel.addEventListener('change',function(){
