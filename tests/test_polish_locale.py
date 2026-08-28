@@ -15,8 +15,19 @@ def read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
+def locale_src(locale_key: str) -> str:
+    """English lives inline in static/i18n.js; every other locale is a lazy
+    per-locale bundle under static/i18n/ (i18n per-locale split)."""
+    if locale_key == "en":
+        return read(REPO / "static" / "i18n.js")
+    return read(REPO / "static" / "i18n" / f"{locale_key}.js")
+
+
 def extract_locale_block(src: str, locale_key: str) -> str:
-    start_match = re.search(rf"\b{re.escape(locale_key)}\s*:\s*\{{", src)
+    start_match = re.search(
+        rf"(?:\b{re.escape(locale_key)}\s*:\s*|LOCALES\.{re.escape(locale_key)}\s*=\s*|LOCALES\['{re.escape(locale_key)}'\]\s*=\s*)\{{",
+        src,
+    )
     assert start_match, f"{locale_key} locale block not found"
 
     start = start_match.end() - 1
@@ -81,7 +92,7 @@ def locale_keys(src: str, locale_key: str) -> list[str]:
 
 
 def test_polish_locale_block_exists():
-    src = read(REPO / "static" / "i18n.js")
+    src = locale_src("pl")
     pl_block = extract_locale_block(src, "pl")
     assert pl_block
     assert "_lang: 'pl'" in pl_block
@@ -90,7 +101,7 @@ def test_polish_locale_block_exists():
 
 
 def test_polish_locale_includes_representative_translations():
-    src = read(REPO / "static" / "i18n.js")
+    src = locale_src("pl")
     pl_block = extract_locale_block(src, "pl")
     expected = [
         "settings_title: 'Ustawienia'",
@@ -108,7 +119,7 @@ def test_polish_locale_includes_representative_translations():
 
 
 def test_polish_settings_detail_descriptions_are_translated():
-    src = read(REPO / "static" / "i18n.js")
+    src = locale_src("pl")
     pl_block = extract_locale_block(src, "pl")
     expected = [
         "settings_desc_workspace_panel_open: 'Gdy ta opcja jest włączona, panel obszaru roboczego / przeglądarki plików otwiera się automatycznie przy każdej nowej sesji. Nadal możesz go zamknąć ręcznie w dowolnym momencie.'",
@@ -128,23 +139,21 @@ def test_polish_settings_detail_descriptions_are_translated():
 
 
 def test_polish_locale_matches_english_key_coverage():
-    src = read(REPO / "static" / "i18n.js")
-    en_keys = set(locale_keys(src, "en"))
-    pl_keys = set(locale_keys(src, "pl"))
+    en_keys = set(locale_keys(locale_src("en"), "en"))
+    pl_keys = set(locale_keys(locale_src("pl"), "pl"))
     assert sorted((en_keys - pl_keys) - PROFILE_CONCEPT_FALLBACK_KEYS) == []
     assert sorted(pl_keys - en_keys) == []
 
 
 def test_polish_locale_has_no_duplicate_keys():
-    src = read(REPO / "static" / "i18n.js")
-    keys = locale_keys(src, "pl")
+    keys = locale_keys(locale_src("pl"), "pl")
 
     duplicates = sorted(k for k, count in Counter(keys).items() if count > 1)
     assert not duplicates, f"Polish locale has duplicate keys: {duplicates}"
 
 
 def test_polish_locale_keys_use_standard_indentation():
-    src = read(REPO / "static" / "i18n.js")
+    src = locale_src("pl")
     pl_block = extract_locale_block(src, "pl")
 
     # Enforce strict 4-space indentation for keys.
@@ -157,9 +166,8 @@ def test_polish_locale_keys_use_standard_indentation():
 
 
 def test_polish_locale_arrow_function_values_mirror_english():
-    src = read(REPO / "static" / "i18n.js")
-    en_block = extract_locale_block(src, "en")
-    pl_block = extract_locale_block(src, "pl")
+    en_block = extract_locale_block(locale_src("en"), "en")
+    pl_block = extract_locale_block(locale_src("pl"), "pl")
 
     value_re = re.compile(r"^\s+([a-zA-Z0-9_]+):\s*(.+?)(?:,\s*$|\s*$)", re.MULTILINE)
     arrow_re = re.compile(r"^\s*\(?[a-zA-Z_,\s]*\)?\s*=>")
@@ -171,9 +179,8 @@ def test_polish_locale_arrow_function_values_mirror_english():
 
 
 def test_polish_locale_preserves_placeholder_patterns():
-    src = read(REPO / "static" / "i18n.js")
-    en_block = extract_locale_block(src, "en")
-    pl_block = extract_locale_block(src, "pl")
+    en_block = extract_locale_block(locale_src("en"), "en")
+    pl_block = extract_locale_block(locale_src("pl"), "pl")
 
     value_re = re.compile(r"^\s+([a-zA-Z0-9_]+):\s*(.+?)(?:,\s*$|\s*$)", re.MULTILINE)
     placeholder_re = re.compile(r"\{[0-9]+\}|\$\{[a-zA-Z_][a-zA-Z0-9_]*\}")
@@ -200,7 +207,7 @@ def test_polish_locale_preserves_placeholder_patterns():
 
 def test_polish_locale_has_no_double_escaped_unicode_sequences():
     """JSON-style double escapes (\\\\u2026) render literal backslash-u in the UI."""
-    src = read(REPO / "static" / "i18n.js")
+    src = locale_src("pl")
     pl_block = extract_locale_block(src, "pl")
     for bad in ("\\\\u2026", "\\\\u2192", "\\\\u2713"):
         assert bad not in pl_block, f"Polish locale must not contain {bad!r}"

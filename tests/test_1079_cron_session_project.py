@@ -80,7 +80,11 @@ def test_cron_jobs_project_i18n_key_exists():
     i18n_path = pathlib.Path(__file__).resolve().parent.parent / "static" / "i18n.js"
     content = i18n_path.read_text(encoding="utf-8")
 
-    # Count occurrences of cron_jobs_project
+    # Non-English locales ship as per-locale lazy bundles (static/i18n/<code>.js);
+    # count the key across i18n.js plus every bundle.
+    for bundle in sorted((i18n_path.parent / "i18n").glob("*.js")):
+        content += bundle.read_text(encoding="utf-8")
+
     count = content.count("cron_jobs_project:")
     assert count >= 9, f"Expected >= 9 locale entries for cron_jobs_project, found {count}"
 

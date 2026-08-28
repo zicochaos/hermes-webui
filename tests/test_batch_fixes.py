@@ -220,7 +220,11 @@ class TestSystemTheme:
         )
 
     def test_i18n_cmd_theme_all_locales(self):
+        # Non-English locales ship as per-locale lazy bundles (static/i18n/<code>.js);
+        # count the key across i18n.js plus every bundle.
         src = read("static/i18n.js")
+        for bundle in sorted(pathlib.Path("static/i18n").glob("*.js")):
+            src += bundle.read_text(encoding="utf-8")
         count = src.count("system/dark/light")
         assert count >= 5, (
             f"cmd_theme description should mention 'system' in all 5 locales; "

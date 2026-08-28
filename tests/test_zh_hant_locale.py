@@ -14,6 +14,11 @@ def read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
+I18N_JS = REPO / "static" / "i18n.js"
+# zh-Hant ships as its own lazy bundle since the per-locale i18n split.
+ZH_HANT_JS = REPO / "static" / "i18n" / "zh-Hant.js"
+
+
 def locale_block(src: str, marker: str) -> str:
     start = src.index(marker)
     open_brace = src.index("{", start)
@@ -129,7 +134,7 @@ def template_arg_refs(value: str, arg_names: list[str] | None) -> list[str]:
 
 def test_english_locale_remains_english_source_text():
     src = read(REPO / "static" / "i18n.js")
-    en_block = locale_block(src, "\n  en: {")
+    en_block = locale_block(src, "LOCALES.en = {")
     cjk_lines = [
         line.strip()
         for line in en_block.splitlines()
@@ -138,16 +143,16 @@ def test_english_locale_remains_english_source_text():
     assert not cjk_lines, cjk_lines
 
 def test_zh_hant_locale_block_exists():
-    src = read(REPO / "static" / "i18n.js")
-    assert "\n  'zh-Hant': {" in src
+    src = read(ZH_HANT_JS)
+    assert "window.LOCALES['zh-Hant'] = {" in src
     assert "_label: '繁體中文'" in src
     assert "_speech: 'zh-TW'" in src
 
 
 def test_zh_hant_locale_covers_english_keys_without_duplicates():
-    src = read(REPO / "static" / "i18n.js")
-    en_block = locale_block(src, "\n  en: {")
-    zh_block = locale_block(src, "\n  'zh-Hant': {")
+    src = read(I18N_JS)
+    en_block = locale_block(src, "LOCALES.en = {")
+    zh_block = locale_block(read(ZH_HANT_JS), "window.LOCALES['zh-Hant'] = {")
     en_keys = set(keys(en_block))
     zh_keys = keys(zh_block)
 
@@ -162,9 +167,8 @@ def test_zh_hant_locale_covers_english_keys_without_duplicates():
 
 
 def test_zh_hant_locale_preserves_function_and_placeholder_shapes():
-    src = read(REPO / "static" / "i18n.js")
-    en_values = value_map(locale_block(src, "\n  en: {"))
-    zh_values = value_map(locale_block(src, "\n  'zh-Hant': {"))
+    en_values = value_map(locale_block(read(I18N_JS), "LOCALES.en = {"))
+    zh_values = value_map(locale_block(read(ZH_HANT_JS), "window.LOCALES['zh-Hant'] = {"))
 
     function_mismatches = []
     placeholder_mismatches = []
@@ -197,7 +201,7 @@ def test_zh_hant_locale_preserves_function_and_placeholder_shapes():
     assert not template_var_mismatches, template_var_mismatches
 
 def test_zh_hant_locale_includes_representative_translations():
-    src = read(REPO / "static" / "i18n.js")
+    src = read(ZH_HANT_JS)
     expected = [
         "approval_heading: '需要核准'",
         "settings_label_language: '語言'",
@@ -211,8 +215,8 @@ def test_zh_hant_locale_includes_representative_translations():
 
 
 def test_zh_hant_locale_has_no_known_untranslated_strings():
-    src = read(REPO / "static" / "i18n.js")
-    block = locale_block(src, "\n  'zh-Hant': {")
+    src = read(ZH_HANT_JS)
+    block = locale_block(src, "window.LOCALES['zh-Hant'] = {")
     untranslated = [
         "Summarize What's New with AI",
         "Changes the What's New action",

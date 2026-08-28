@@ -90,9 +90,10 @@ def test_auth_sessions_have_lock_and_success_can_clear_login_attempts(monkeypatc
 
 def _english_i18n_keys():
     text = (ROOT / "static" / "i18n.js").read_text(encoding="utf-8")
-    match = re.search(r"en:\s*\{([\s\S]*?)\n\s*\},\n\s*[a-z]{2}:", text)
-    assert match, "could not find English locale block"
-    return set(re.findall(r"^\s*([A-Za-z0-9_]+):", match.group(1), re.M))
+    start = text.index("LOCALES.en = {")
+    end = text.index("\n  };", start)
+    block = text[start:end]
+    return set(re.findall(r"^\s*([A-Za-z0-9_]+):", block, re.M))
 
 
 def _literal_i18n_refs():

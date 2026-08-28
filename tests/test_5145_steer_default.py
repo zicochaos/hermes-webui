@@ -28,12 +28,13 @@ LOCALE_KEYS = (
 
 
 def _locale_block(locale_key):
-    escaped_keys = [re.escape(key) for key in LOCALE_KEYS]
-    next_keys = "|".join(key for key in escaped_keys if key != re.escape(locale_key))
-    pattern = rf"^  {re.escape(locale_key)}: \{{(?P<body>.*?)(?=^  (?:{next_keys}): \{{|\n\}};)"
-    match = re.search(pattern, I18N_JS, re.MULTILINE | re.DOTALL)
-    assert match, f"missing {locale_key} locale block"
-    return match.group("body")
+    # English stays inline in static/i18n.js; other locales are per-locale bundles.
+    key = locale_key.strip("'")
+    if key == "en":
+        start = I18N_JS.index("LOCALES.en = {")
+        end = I18N_JS.index("\n  };", start)
+        return I18N_JS[start:end]
+    return (ROOT / "static" / "i18n" / f"{key}.js").read_text(encoding="utf-8")
 
 
 def _default_message_mode_label(locale_key):

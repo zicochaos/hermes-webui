@@ -15,15 +15,26 @@ def read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
+def locale_src(locale_key: str) -> str:
+    """English lives inline in static/i18n.js; every other locale is a lazy
+    per-locale bundle under static/i18n/ (i18n per-locale split)."""
+    if locale_key == "en":
+        return read(REPO / "static" / "i18n.js")
+    return read(REPO / "static" / "i18n" / f"{locale_key}.js")
+
+
 def test_russian_locale_block_exists():
-    src = read(REPO / "static" / "i18n.js")
-    assert "\n  ru: {" in src
+    src = locale_src("ru")
+    assert "window.LOCALES.ru = {" in src
     assert "_label: 'Русский'" in src
     assert "_speech: 'ru-RU'" in src
 
 
 def extract_locale_block(src: str, locale_key: str) -> str:
-    start_match = re.search(rf"\b{re.escape(locale_key)}\s*:\s*\{{", src)
+    start_match = re.search(
+        rf"(?:\b{re.escape(locale_key)}\s*:\s*|LOCALES\.{re.escape(locale_key)}\s*=\s*|LOCALES\['{re.escape(locale_key)}'\]\s*=\s*)\{{",
+        src,
+    )
     assert start_match, f"{locale_key} locale block not found"
 
     start = start_match.end() - 1
@@ -83,7 +94,7 @@ def extract_locale_block(src: str, locale_key: str) -> str:
 
 
 def test_russian_locale_includes_representative_translations():
-    src = read(REPO / "static" / "i18n.js")
+    src = locale_src("ru")
     expected = [
         "settings_title: '\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438'",
         "login_title: '\u0412\u0445\u043e\u0434'",
@@ -109,9 +120,8 @@ def test_russian_locale_includes_representative_translations():
 
 
 def test_public_share_locale_values_are_not_swapped():
-    src = read(REPO / "static" / "i18n.js")
-    en_block = extract_locale_block(src, "en")
-    ru_block = extract_locale_block(src, "ru")
+    en_block = extract_locale_block(locale_src("en"), "en")
+    ru_block = extract_locale_block(locale_src("ru"), "ru")
 
     assert "share_session: 'Share'" in en_block
     assert "share_session_tooltip: 'Create a public read-only share link'" in en_block
@@ -125,24 +135,22 @@ def test_public_share_locale_values_are_not_swapped():
 
 
 def test_russian_locale_covers_english_keys():
-    src = read(REPO / "static" / "i18n.js")
     key_pattern = re.compile(r"^\s+([a-zA-Z0-9_]+):", re.MULTILINE)
-    en_keys = set(key_pattern.findall(extract_locale_block(src, "en")))
-    ru_keys = set(key_pattern.findall(extract_locale_block(src, "ru")))
+    en_keys = set(key_pattern.findall(extract_locale_block(locale_src("en"), "en")))
+    ru_keys = set(key_pattern.findall(extract_locale_block(locale_src("ru"), "ru")))
 
     missing = sorted((en_keys - ru_keys) - PROFILE_CONCEPT_FALLBACK_KEYS)
     assert not missing, f"Russian locale missing keys: {missing}"
 
 
 def test_russian_locale_has_no_duplicate_keys():
-    src = read(REPO / "static" / "i18n.js")
     key_pattern = re.compile(r"^\s+([a-zA-Z0-9_]+):", re.MULTILINE)
-    keys = key_pattern.findall(extract_locale_block(src, "ru"))
+    keys = key_pattern.findall(extract_locale_block(locale_src("ru"), "ru"))
     duplicates = sorted(k for k, count in Counter(keys).items() if count > 1)
     assert not duplicates, f"Russian locale has duplicate keys: {duplicates}"
 
 
 def test_russian_locale_has_no_cjk_fallback_text():
-    src = read(REPO / "static" / "i18n.js")
+    src = locale_src("ru")
     ru_block = extract_locale_block(src, "ru")
     assert not re.search(r"[\u3400-\u9fff\u3040-\u30ff]", ru_block)

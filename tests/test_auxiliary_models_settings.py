@@ -431,9 +431,12 @@ class TestAuxiliaryModelsI18n:
             )
 
     def test_all_locales_have_auxiliary_keys(self):
-        """Count of each key should equal the number of supported locales."""
+        """Count of each key should equal the number of supported locales
+        (i18n.js plus the per-locale lazy bundles under static/i18n/)."""
         for key in self.REQUIRED_KEYS:
             count = I18N_JS.count(f"{key}:")
+            for bundle in sorted((ROOT / "static" / "i18n").glob("*.js")):
+                count += bundle.read_text(encoding="utf-8").count(f"{key}:")
             assert count == 15, (
                 f"i18n key '{key}' found {count} times — expected 15 (one per locale)"
             )

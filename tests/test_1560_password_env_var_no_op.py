@@ -337,26 +337,12 @@ EXPECTED_LOCALES = ("en", "it", "ja", "ru", "es", "de", "zh", "zh-Hant", "pt", "
 
 
 def _locale_block(locale_key: str) -> str:
-    """Return the slice of i18n.js between `<key>: {` and the next top-level
-    locale opener (or end-of-file). Good enough for substring assertions."""
-    # Locale openers look like `  en: {` or `  'zh-Hant': {` (two-space indent).
-    if "-" in locale_key:
-        opener = f"  '{locale_key}':"
-    else:
-        opener = f"  {locale_key}:"
-    start = I18N_JS.index(opener)
-    # Find the next locale opener, scanning all known locales.
-    rest = I18N_JS[start + len(opener):]
-    next_starts = []
-    for other in EXPECTED_LOCALES:
-        if other == locale_key:
-            continue
-        cand_opener = f"  '{other}':" if "-" in other else f"  {other}:"
-        idx = rest.find(cand_opener)
-        if idx >= 0:
-            next_starts.append(idx)
-    end = min(next_starts) if next_starts else len(rest)
-    return rest[:end]
+    """Return the source of a locale: English stays inline in static/i18n.js;
+    every other locale is a lazy per-locale bundle (static/i18n/<code>.js).
+    Substring assertions run against the whole per-locale file."""
+    if locale_key == "en":
+        return I18N_JS
+    return (REPO_ROOT / "static" / "i18n" / f"{locale_key}.js").read_text(encoding="utf-8")
 
 
 def test_password_env_var_locked_key_present_in_all_locales():

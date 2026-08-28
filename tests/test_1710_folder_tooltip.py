@@ -74,9 +74,11 @@ class TestFolderTooltipGated:
 
     def test_i18n_key_still_defined_in_all_locales(self):
         """The i18n key must remain defined in every locale block in static/i18n.js."""
+        # Non-English locales ship as per-locale lazy bundles (static/i18n/<code>.js);
+        # count the key across i18n.js plus every bundle.
         i18n = (REPO_ROOT / "static" / "i18n.js").read_text(encoding="utf-8")
-        # i18n.js has 9 locale blocks with the same key. Lock that the key still exists
-        # at least 5 times (en, plus a quorum of locales) — exact count is i18n maintenance.
+        for bundle in sorted((REPO_ROOT / "static" / "i18n").glob("*.js")):
+            i18n += bundle.read_text(encoding="utf-8")
         count = i18n.count("double_click_rename:")
         assert count >= 5, (
             f"i18n key 'double_click_rename' should be defined in multiple locales; "

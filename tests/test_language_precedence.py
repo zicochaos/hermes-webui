@@ -18,8 +18,14 @@ def _run_i18n_case(script_expr: str) -> dict:
         const fs = require('fs');
         const vm = require('vm');
         const src = fs.readFileSync({json.dumps(str(REPO_ROOT / "static" / "i18n.js"))}, 'utf8');
+        // Non-English locales live in lazy bundles; a page always has the saved
+        // locale pre-loaded (index.html bootstrap), so mirror that here.
+        const bundleDir = {json.dumps(str(REPO_ROOT / "static" / "i18n"))};
+        const bundles = fs.readdirSync(bundleDir).filter((f) => f.endsWith('.js')).sort()
+          .map((f) => fs.readFileSync(bundleDir + '/' + f, 'utf8'));
         const storage = {{}};
         const ctx = {{
+          window: {{}},
           localStorage: {{
             getItem: (k) => Object.prototype.hasOwnProperty.call(storage, k) ? storage[k] : null,
             setItem: (k, v) => {{ storage[k] = String(v); }},
@@ -31,6 +37,7 @@ def _run_i18n_case(script_expr: str) -> dict:
         }};
         vm.createContext(ctx);
         vm.runInContext(src, ctx);
+        for (const b of bundles) vm.runInContext(b, ctx);
         const out = vm.runInContext({json.dumps(wrapped_expr)}, ctx);
         process.stdout.write(JSON.stringify(out));
         """

@@ -30,6 +30,10 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 ROUTES = ROOT / "api" / "routes.py"
 UI = ROOT / "static" / "ui.js"
 I18N = ROOT / "static" / "i18n.js"
+I18N_BUNDLES = sorted((ROOT / "static" / "i18n").glob("*.js"))
+I18N_ALL = I18N.read_text(encoding="utf-8") + "".join(
+    p.read_text(encoding="utf-8") for p in I18N_BUNDLES
+)
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
 from conftest import TEST_BASE  # noqa: E402
@@ -227,7 +231,7 @@ class TestOpenInVsCodeI18n:
 
     def test_open_in_vscode_key_count(self):
         """open_in_vscode key must appear exactly once per locale (14 total)."""
-        src = I18N.read_text(encoding="utf-8")
+        src = I18N_ALL
         count = src.count("open_in_vscode:")
         assert count == 15, (
             f"Expected 14 open_in_vscode: entries (one per locale), found {count}"
@@ -235,7 +239,7 @@ class TestOpenInVsCodeI18n:
 
     def test_open_in_vscode_failed_key_count(self):
         """open_in_vscode_failed key must appear exactly once per locale (14 total)."""
-        src = I18N.read_text(encoding="utf-8")
+        src = I18N_ALL
         count = src.count("open_in_vscode_failed:")
         assert count == 15, (
             f"Expected 14 open_in_vscode_failed: entries (one per locale), found {count}"
@@ -249,7 +253,7 @@ class TestOpenInVsCodeI18n:
 
     def test_non_english_locales_translated(self):
         """Non-English locales must have real translations, not TODO stubs."""
-        src = I18N.read_text(encoding="utf-8")
+        src = I18N_ALL
         # Spot-check a selection of locales — none of these should be TODO stubs.
         assert "open_in_vscode: 'Apri in VS Code'" in src       # it
         assert "open_in_vscode: 'VS Codeで開く'" in src          # ja
