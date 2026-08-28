@@ -9329,7 +9329,7 @@ async function loadSettingsPanel(){
       for(const code of localeCodes){
         const bundle=(typeof LOCALES!=='undefined')?LOCALES[code]:null;
         const opt=document.createElement('option');
-        opt.value=code;opt.textContent=(bundle&&bundle._label)||code;
+        opt.value=code;opt.textContent=(bundle&&bundle._label)||(KNOWN_LOCALE_LABELS&&KNOWN_LOCALE_LABELS[code])||code;
         langSel.appendChild(opt);
       }
       langSel.value=resolvedLanguage;

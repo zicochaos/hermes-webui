@@ -1790,6 +1790,26 @@ let _locale = LOCALES.en;
 // is never clobbered to 'en'.
 const KNOWN_LOCALES = ['en','it','ja','ru','es','de','zh','zh-Hant','pt','ko','fr','cs','tr','pl','vi'];
 
+// Native labels so the settings dropdown can name every known locale even
+// before its (lazily loaded) bundle is present. Mirrors each bundle's _label.
+const KNOWN_LOCALE_LABELS = {
+  en: 'English',
+  it: 'Italiano',
+  ja: '日本語',
+  ru: 'Русский',
+  es: 'Español',
+  de: 'Deutsch',
+  zh: '简体中文',
+  'zh-Hant': '繁體中文',
+  pt: 'Português',
+  ko: '한국어',
+  fr: 'Français',
+  cs: 'Čeština',
+  tr: 'Türkçe',
+  pl: 'Polski',
+  vi: 'Tiếng Việt'
+};
+
 /**
  * Resolve an incoming locale tag to a KNOWN_LOCALES key, regardless of
  * which bundles are currently loaded.
@@ -1866,7 +1886,8 @@ function _loadLocaleBundle(code) {
   if (LOCALES[code] || _LOADING_LOCALES[code]) return;
   _LOADING_LOCALES[code] = true;
   const s = document.createElement('script');
-  s.src = 'static/i18n/' + encodeURIComponent(code) + '.js';
+  const version = (typeof window !== 'undefined' && window.__HERMES_WEBUI_BUNDLE_VERSION__) ? ('?v=' + window.__HERMES_WEBUI_BUNDLE_VERSION__) : '';
+  s.src = 'static/i18n/' + encodeURIComponent(code) + '.js' + version;
   s.onload = () => {
     delete _LOADING_LOCALES[code];
     setLocale(code);
