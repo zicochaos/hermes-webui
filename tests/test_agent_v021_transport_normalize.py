@@ -68,12 +68,15 @@ def test_anthropic_title_uses_transport_normalize_response(monkeypatch):
     """
     from api.streaming import generate_title_raw_via_agent
 
-    import agent.anthropic_adapter
-
-    # Mirror v0.21: the module-level normalizer is gone (no-op on v0.21 trees).
-    monkeypatch.delattr(
-        agent.anthropic_adapter, 'normalize_anthropic_response', raising=False
-    )
+    # Simulate the v0.21 adapter module in-process (works in agent-less CI too):
+    # it still exports build_anthropic_kwargs but deliberately does NOT define
+    # normalize_anthropic_response — exactly the environment this port targets.
+    fake_adapter = types.ModuleType('agent.anthropic_adapter')
+    fake_adapter.build_anthropic_kwargs = lambda **kwargs: {}
+    fake_agent_pkg = sys.modules.get('agent') or types.ModuleType('agent')
+    fake_agent_pkg.anthropic_adapter = fake_adapter
+    monkeypatch.setitem(sys.modules, 'agent', fake_agent_pkg)
+    monkeypatch.setitem(sys.modules, 'agent.anthropic_adapter', fake_adapter)
 
     transport = _FakeTransport(TITLE_TEXT)
     agent = _make_anthropic_fake_agent(transport)
